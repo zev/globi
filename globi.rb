@@ -3,6 +3,7 @@
 require 'rubygems'
 require 'geoip'
 require 'date'
+require 'open-uri'
 
 COMMON_FORMAT = /
 (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+
@@ -19,7 +20,7 @@ $geo_city = GeoIP.new(base + 'GeoLiteCity.dat')
 
 class GeoInfo
   attr_reader :country, :region, :city, :latitude, :longitude, :date, :country_code
-  
+
   def initialize(city_data, date)
     @country_code = city_data[2]
     @country = city_data[4]
@@ -29,7 +30,7 @@ class GeoInfo
     @longitude = city_data[10]
     @date = date
   end
-  
+
   def to_s
     "Country: #{country} Region: #{region} City: #{city} Lat: #{latitude} Long: #{longitude}"
   end
@@ -51,13 +52,13 @@ class GeoInfo
     </Placemark>
     KML
   end
-  
+
 end
 
 def scan(line)
   if m = COMMON_FORMAT.match(line)
     ip = m[1]
-    GeoInfo.new( $geo_city.city(ip), parse_date(m[2]) ) 
+    GeoInfo.new( $geo_city.city(ip), parse_date(m[2]) )
   else
     nil
   end
@@ -133,9 +134,11 @@ def google_map(io)
    min = hits.values.min
    chld = ""
    data = ""
+   max_sym_idx = $symbols.size - 1
    hits.each do |country, val|
      chld << country
-     data << $symbols[(val - min) / max * $symbols.size]
+     idx = ((val - min) / max.to_f * max_sym_idx).round
+     data << $symbols[idx]
    end
    query = [
      "cht=t",
@@ -151,7 +154,10 @@ end
 
 if __FILE__ == $0
   io = ARGV.first ? File.new(ARGV.first, "r") : $stdin
-  #print_scan(io) 
-  #kml(io)
-  puts google_map(io)
+  #print_scan(io)
+  kml(io)  
+  io.rewind
+  File.open("map_#{Time.now.to_i}.png", "w") do |f|
+   f.print open(google_map(io)).read
+  end
 end
