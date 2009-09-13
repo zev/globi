@@ -11,11 +11,11 @@ class Globi
   def formatter
     @formatter ||= Globi::PrintFormater.new
   end
-  
+
   def geo_ip
     @geo_ip ||= default_geo_ip
   end
-  
+
   def scan(io)
     formatter.open do |fmt|
       io.each_line do |line|
@@ -37,7 +37,7 @@ class Globi
   "(.*)"\s+
   "(.*)"
   /ixm
-  
+
   # For now assume scan parses just Apache Common Log Format logs
   def scan_line(line)
     if m = COMMON_FORMAT.match(line)
@@ -47,7 +47,7 @@ class Globi
       nil
     end
   end
-  
+
   def default_geo_ip
     geo_db = File.join(File.dirname(__FILE__), "db", 'GeoLiteCity.dat')
     GeoIP.new(base)
@@ -62,7 +62,7 @@ end
 
 class Globi::GeoInfo
   attr_reader :country, :region, :city, :latitude, :longitude, :date, :country_code
-    
+
   def initialize(city_data, date)
     @country_code = city_data[2]
     @country = city_data[4]
@@ -72,55 +72,55 @@ class Globi::GeoInfo
     @longitude = city_data[10]
     @date = date
   end
-  
+
   def to_s
     "Country: #{country} Region: #{region} City: #{city} Lat: #{latitude} Long: #{longitude}"
   end
-  
+
 end
 
 class Globi::Formatter
   attr_writer :output_stream
-  
+
   def output_stream
     @output_stream ||= $stdout
   end
-  
+
   def open
     open_scan
     yield self
   ensure
     close_scan
   end
-  
+
   def process_entry(geo_info)
     output_stream.puts process_geo_entry(geo_info)
   end
-  
+
   def open_scan
     output_stream.puts process_open
   end
-  
+
   def close_scan
     output_stream.puts process_close
   end
-  
+
   protected
-  
+
   # overwrite the following methods
   def process_open
   end
-  
+
   def process_close
   end
-  
+
   def process_geo_entry(geo_info)
   end  
-    
+
 end
 
 class Globi::GroupedFormatter < Globi::Formatter
-  
+
   def initialize
     @formatters = []
   end
@@ -128,19 +128,19 @@ class Globi::GroupedFormatter < Globi::Formatter
   def <<(formatrtr)
     @formatters << formatter
   end
-  
+
   def open_scan
     @formatters.each { |f| f.open_scan }
   end
-  
+
   def close_scan
     @formatters.each { |f| f.close_scan }
   end
-  
+
   def process_entry(geo_info)
     @formatters.each { |f| f.process_entry(geo_info) }
   end
-  
+
 end
 
 # Simple debug formatter that outputs each geo_info data point
@@ -152,9 +152,9 @@ end
 
 # Create a KML XML file suitable for GoogleEarth
 class Globi::KMLFormatter < Globi::Formatter
-  
+
   attr_accessor :destination_longitude, :destination_latitude, :destination_name
-  
+
   def process_geo_entry(geo)
     <<-KML
     <Placemark>
@@ -172,7 +172,7 @@ class Globi::KMLFormatter < Globi::Formatter
     </Placemark>
     KML
   end
-  
+
   def process_open
     <<KML
 <?xml version="1.0" encoding="UTF-8"?>
@@ -211,9 +211,9 @@ end
 # Creates a URL to a google chart with a map of the world where each country
 # is colored based on the number of hits it gets
 class Globi::GoogleChartFormatter < Globi::Formatter
-  
+
   SYMBOLS = ("A".."Z").to_a + ("a".."z").to_a + ('0'..'9').to_a
-  
+
   def initialize
     @hits = Hash.new(0)
   end
@@ -223,17 +223,18 @@ class Globi::GoogleChartFormatter < Globi::Formatter
     nil # don't want output yet
   end
 
+  # note could do something fun like on close just read the link and save an image
   def process_close
     max = @hits.values.max
     min = @hits.values.min
     chld = ""
     data = ""
-    
+
     @hits.each do |country, val|
       chld << country
       data << SYMBOLS[(val - min) / max * SYMBOLS.size]
     end
-    
+
     query = [
       "cht=t",
       "chs=440x220",
